@@ -13,19 +13,28 @@ use std::io::BufWriter;
 const SPHERE_RADIUS: f32 = 1.5;
 
 fn signed_distance(p: Vec3f) -> f32 {
-    return p.magnitude() - SPHERE_RADIUS;
+    p.magnitude() - SPHERE_RADIUS
 }
 
-fn sphere_trace(orig: Vec3f, dir: Vec3f) -> bool {
+fn sphere_trace(orig: Vec3f, dir: Vec3f) -> Option<Vec3f> {
     let mut pos: Vec3f = orig;
     for _i in 0..128 {
         let d = signed_distance(pos);
         if d < 0_f32 {
-            return true;
+            return Some(pos);
         }
-        pos = pos + dir * (d * 0.1_f32).max(0.01_f32);
+        pos += dir * (d * 0.1_f32).max(0.01_f32);
     }
-    return false;
+    None
+}
+
+fn distance_field_normal(pos: Vec3f) -> Vec3f {
+    const EPS: f32 = 0.1;
+    let d = signed_distance(pos);
+    let nx = signed_distance(pos + Vec3f::new(EPS, 0., 0.)) - d;
+    let ny = signed_distance(pos + Vec3f::new(0., EPS, 0.)) - d;
+    let nz = signed_distance(pos + Vec3f::new(0., 0., EPS)) - d;
+    Vec3f::new(nx, ny, nz).normalize()
 }
 
 fn clamp(val: f32) -> u8 {
@@ -35,7 +44,7 @@ fn clamp(val: f32) -> u8 {
 fn main() -> Result<(), Box<Error>> {
     const WIDTH: usize = 640;
     const HEIGHT: usize = 480;
-    const FOV: f32 = f32::consts::PI / 2.;
+    const FOV: f32 = f32::consts::PI / 3.;
     let mut framebuffer: Vec<Vec3f> = vec![Vec3f::new(0., 0., 0.); WIDTH * HEIGHT];
 
     // Render
@@ -49,19 +58,21 @@ fn main() -> Result<(), Box<Error>> {
             let dir_x: f32 = (i as f32 + 0.5) - WIDTH as f32 / 2.;
             let dir_y: f32 = -(j as f32 + 0.5) + HEIGHT as f32 / 2.;
             let dir_z: f32 = -(HEIGHT as f32) / (2. * (FOV / 2.).tan());
-            if sphere_trace(
-                Vec3f::new(0., 0., 3.),
+            if let Some(hit) = sphere_trace(
+                Vec3f::new(0., 0., 3.), // the camera is placed to (0,0,3) and it looks along the -z axis
                 Vec3f::new(dir_x, dir_y, dir_z).normalize(),
             ) {
-                // the camera is placed to (0,0,3) and it looks along the -z axis
-                *buffer = Vec3f::new(1., 1., 1.);
+                let light_dir: Vec3f = (Vec3f::new(10., 10., 10.) - hit).normalize(); // one light is placed to (10,10,10)
+                let light_intensity: f32 = 0.4_f32.max(light_dir.dot(distance_field_normal(hit)));
+
+                *buffer = Vec3f::new(1., 1., 1.) * light_intensity;
             } else {
                 *buffer = Vec3f::new(0.2, 0.7, 0.8); // background color
             }
         });
 
     // Save image
-    let path = "step1.png";
+    let path = "step_2.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
