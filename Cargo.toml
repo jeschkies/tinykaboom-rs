@@ -5,3 +5,6 @@ authors = ["Karsten Jeschkies <k@jeschkies.xyz>"]
 edition = "2018"
 
 [dependencies]
+cgmath = "0.17.0"
+png = "0.14.0"
+rayon = "1.0.3"
