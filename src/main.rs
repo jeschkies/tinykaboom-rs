@@ -64,15 +64,16 @@ fn main() -> Result<(), Box<Error>> {
             ) {
                 let light_dir: Vec3f = (Vec3f::new(10., 10., 10.) - hit).normalize(); // one light is placed to (10,10,10)
                 let light_intensity: f32 = 0.4_f32.max(light_dir.dot(distance_field_normal(hit)));
+                let displacement: f32 = ((16.*hit.x).sin() * (16.*hit.y).sin() * (16.*hit.z).sin() + 1.)/2.;
 
-                *buffer = Vec3f::new(1., 1., 1.) * light_intensity;
+                *buffer = Vec3f::new(1., 1., 1.) * displacement * light_intensity;
             } else {
                 *buffer = Vec3f::new(0.2, 0.7, 0.8); // background color
             }
         });
 
     // Save image
-    let path = "step_2.png";
+    let path = "step_3.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
