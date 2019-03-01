@@ -14,8 +14,7 @@ const SPHERE_RADIUS: f32 = 1.5;
 const NOISE_AMPLITUDE: f32 = 0.2;
 
 fn signed_distance(p: Vec3f) -> f32 {
-    let hit = p.normalize() * SPHERE_RADIUS;
-    let displacement: f32 = (16.*hit.x).sin() * (16.*hit.y).sin() * (16.*hit.z).sin() *NOISE_AMPLITUDE;
+    let displacement: f32 = (16.*p.x).sin() * (16.*p.y).sin() * (16.*p.z).sin() *NOISE_AMPLITUDE;
     p.magnitude() - (SPHERE_RADIUS + displacement)
 }
 
@@ -75,7 +74,7 @@ fn main() -> Result<(), Box<Error>> {
         });
 
     // Save image
-    let path = "step_4.png";
+    let path = "step_5.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
