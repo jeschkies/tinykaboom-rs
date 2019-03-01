@@ -10,3 +10,6 @@ This is a Rust port of [Tinykaboom](https://github.com/ssloy/tinykaboom/wiki) by
 
 ## Step 3
 ![step-3](step_3.png)
+
+## Step 4
+![step-4](step_4.png)

@@ -11,9 +11,12 @@ use std::fs::File;
 use std::io::BufWriter;
 
 const SPHERE_RADIUS: f32 = 1.5;
+const NOISE_AMPLITUDE: f32 = 0.2;
 
 fn signed_distance(p: Vec3f) -> f32 {
-    p.magnitude() - SPHERE_RADIUS
+    let hit = p.normalize() * SPHERE_RADIUS;
+    let displacement: f32 = (16.*hit.x).sin() * (16.*hit.y).sin() * (16.*hit.z).sin() *NOISE_AMPLITUDE;
+    p.magnitude() - (SPHERE_RADIUS + displacement)
 }
 
 fn sphere_trace(orig: Vec3f, dir: Vec3f) -> Option<Vec3f> {
@@ -64,16 +67,15 @@ fn main() -> Result<(), Box<Error>> {
             ) {
                 let light_dir: Vec3f = (Vec3f::new(10., 10., 10.) - hit).normalize(); // one light is placed to (10,10,10)
                 let light_intensity: f32 = 0.4_f32.max(light_dir.dot(distance_field_normal(hit)));
-                let displacement: f32 = ((16.*hit.x).sin() * (16.*hit.y).sin() * (16.*hit.z).sin() + 1.)/2.;
 
-                *buffer = Vec3f::new(1., 1., 1.) * displacement * light_intensity;
+                *buffer = Vec3f::new(1., 1., 1.) * light_intensity;
             } else {
                 *buffer = Vec3f::new(0.2, 0.7, 0.8); // background color
             }
         });
 
     // Save image
-    let path = "step_3.png";
+    let path = "step_4.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
