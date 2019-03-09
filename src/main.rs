@@ -13,8 +13,59 @@ use std::io::BufWriter;
 const SPHERE_RADIUS: f32 = 1.5;
 const NOISE_AMPLITUDE: f32 = 0.2;
 
+// Many magic variables from https://github.com/ssloy/tinykaboom/commit/6ac4658d75cadaf095af7994572d79ceb395af9a.
+fn lerp(v0: f32, v1: f32, t: f32) -> f32 {
+    v0 + (v1 - v0) * t.min(1.).max(0.)
+}
+
+fn hash(n: f32) -> f32 {
+    let x = n.sin() * 43758.5453;
+    x - x.floor()
+}
+
+fn noise(x: Vec3f) -> f32 {
+    let p = Vec3f::new(x.x.floor(), x.y.floor(), x.z.floor());
+    let mut f = Vec3f::new(x.x - p.x, x.y - p.y, x.z - p.z);
+    f = f * (f.dot(Vec3f::new(3., 3., 3.) - f * 2.));
+    let n = p.dot(Vec3f::new(1., 57., 113.));
+    lerp(
+        lerp(
+            lerp(hash(n + 0.), hash(n + 1.), f.x),
+            lerp(hash(n + 57.), hash(n + 58.), f.x),
+            f.y,
+        ),
+        lerp(
+            lerp(hash(n + 113.), hash(n + 114.), f.x),
+            lerp(hash(n + 170.), hash(n + 171.), f.x),
+            f.y,
+        ),
+        f.z,
+    )
+}
+
+fn rotate(v: Vec3f) -> Vec3f {
+    Vec3f::new(
+        Vec3f::new(0.00, 0.80, 0.60).dot(v),
+        Vec3f::new(-0.80, 0.36, -0.48).dot(v),
+        Vec3f::new(-0.60, -0.48, 0.64).dot(v),
+    )
+}
+
+fn fractal_brownian_motion(p: Vec3f) -> f32 {
+    let mut p: Vec3f = rotate(p);
+    let mut f: f32 = 0.;
+    f += 0.5000 * noise(p);
+    p = p * 2.32;
+    f += 0.2500 * noise(p);
+    p = p * 3.03;
+    f += 0.1250 * noise(p);
+    p = p * 2.61;
+    f += 0.0625 * noise(p);
+    f / 0.9375
+}
+
 fn signed_distance(p: Vec3f) -> f32 {
-    let displacement: f32 = (16.*p.x).sin() * (16.*p.y).sin() * (16.*p.z).sin() *NOISE_AMPLITUDE;
+    let displacement: f32 = -fractal_brownian_motion(p * 3.4) * NOISE_AMPLITUDE;
     p.magnitude() - (SPHERE_RADIUS + displacement)
 }
 
@@ -74,7 +125,7 @@ fn main() -> Result<(), Box<Error>> {
         });
 
     // Save image
-    let path = "step_5.png";
+    let path = "step_6.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
