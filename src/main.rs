@@ -9,15 +9,22 @@ use std::error::Error;
 use std::f32;
 use std::fs::File;
 use std::io::BufWriter;
+use std::ops::Add;
+use std::ops::Mul;
+use std::ops::Sub;
 
 const SPHERE_RADIUS: f32 = 1.5;
 const NOISE_AMPLITUDE: f32 = 0.2;
 
-// Many magic variables from https://github.com/ssloy/tinykaboom/commit/6ac4658d75cadaf095af7994572d79ceb395af9a.
-fn lerp(v0: f32, v1: f32, t: f32) -> f32 {
-    v0 + (v1 - v0) * t.min(1.).max(0.)
+fn lerp<V>(v0: V, v1: V, t: f32) -> V
+where
+    V: Add<V, Output = V> + Sub<V, Output = V> + Mul<f32, Output = V> + Clone,
+{
+    let v2 = v0.clone();
+    v0 + (v1 - v2) * t.min(1.).max(0.)
 }
 
+// Many magic variables from https://github.com/ssloy/tinykaboom/commit/6ac4658d75cadaf095af7994572d79ceb395af9a.
 fn hash(n: f32) -> f32 {
     let x = n.sin() * 43758.5453;
     x - x.floor()
@@ -64,12 +71,35 @@ fn fractal_brownian_motion(p: Vec3f) -> f32 {
     f / 0.9375
 }
 
+fn palette_fire(d: f32) -> Vec3f {
+    const YELLOW: Vec3f = Vec3f::new(1.7, 1.3, 1.0); // note that the color is "hot", i.e. has components >1
+    const ORANGE: Vec3f = Vec3f::new(1.0, 0.6, 0.0);
+    const RED: Vec3f = Vec3f::new(1.0, 0.0, 0.0);
+    const DARKGREY: Vec3f = Vec3f::new(0.2, 0.2, 0.2);
+    const GRAY: Vec3f = Vec3f::new(0.4, 0.4, 0.4);
+
+    let x = d.min(1.).max(0.);
+    if x < 0.25 {
+        lerp(GRAY, DARKGREY, x * 4.)
+    } else if x < 0.5 {
+        lerp(DARKGREY, RED, x * 4. - 1.)
+    } else if x < 0.75 {
+        lerp(RED, ORANGE, x * 4. - 2.)
+    } else {
+        lerp(ORANGE, YELLOW, x * 4. - 3.)
+    }
+}
+
 fn signed_distance(p: Vec3f) -> f32 {
     let displacement: f32 = -fractal_brownian_motion(p * 3.4) * NOISE_AMPLITUDE;
     p.magnitude() - (SPHERE_RADIUS + displacement)
 }
 
 fn sphere_trace(orig: Vec3f, dir: Vec3f) -> Option<Vec3f> {
+    if (orig.dot(orig) - orig.dot(dir).powi(2)) > SPHERE_RADIUS.powi(2) {
+        return None;
+    } // early discard
+
     let mut pos: Vec3f = orig;
     for _i in 0..128 {
         let d = signed_distance(pos);
@@ -115,17 +145,18 @@ fn main() -> Result<(), Box<Error>> {
                 Vec3f::new(0., 0., 3.), // the camera is placed to (0,0,3) and it looks along the -z axis
                 Vec3f::new(dir_x, dir_y, dir_z).normalize(),
             ) {
+                let noise_level = (SPHERE_RADIUS - hit.magnitude()) / NOISE_AMPLITUDE;
                 let light_dir: Vec3f = (Vec3f::new(10., 10., 10.) - hit).normalize(); // one light is placed to (10,10,10)
                 let light_intensity: f32 = 0.4_f32.max(light_dir.dot(distance_field_normal(hit)));
 
-                *buffer = Vec3f::new(1., 1., 1.) * light_intensity;
+                *buffer = palette_fire((-0.2 + noise_level) * 2.) * light_intensity;
             } else {
                 *buffer = Vec3f::new(0.2, 0.7, 0.8); // background color
             }
         });
 
     // Save image
-    let path = "step_6.png";
+    let path = "step_7.png";
     let file = File::create(path)?;
     let w = BufWriter::new(file);
 
